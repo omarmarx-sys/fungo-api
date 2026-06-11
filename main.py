@@ -2,12 +2,15 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
 import os, json
+import PIL.Image
+import io
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -32,19 +35,13 @@ Se a imagem não mostrar um fungo ou for muito ruim, retorne confianca "baixa" e
 @app.post("/identificar")
 async def identificar_fungo(imagem: UploadFile = File(...)):
     conteudo = await imagem.read()
-
-    import PIL.Image
-    import io
     img = PIL.Image.open(io.BytesIO(conteudo))
-
     resposta = model.generate_content([PROMPT, img])
     texto = resposta.text.strip()
-
     if texto.startswith("```"):
         texto = texto.split("```")[1]
         if texto.startswith("json"):
             texto = texto[4:]
-
     resultado = json.loads(texto)
     return resultado
 
