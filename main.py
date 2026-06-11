@@ -6,8 +6,6 @@ import io
 import json
 import os
 
-# Configuração da IA
-# Usando gemini-1.5-flash-latest para evitar erros de versão
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-2.0-flash")
 
@@ -33,13 +31,11 @@ Responda APENAS em JSON válido, sem texto fora do JSON:
 }
 
 Se a imagem não mostrar um fungo claramente, retorne confianca "baixa" e explique no aviso.
-Se a imagem for microscópica, foque em estruturas como hifas, esporos e morfologia celular."
-}
+Se a imagem for microscópica, foque em estruturas como hifas, esporos e morfologia celular.
 """
 
 app = FastAPI()
 
-# Configuração CORS - Aberta para garantir o funcionamento entre domínios
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -57,24 +53,25 @@ async def identificar(imagem: UploadFile = File(...)):
     try:
         conteudo = await imagem.read()
         img = Image.open(io.BytesIO(conteudo))
-        
-        # Chamada ao Gemini
+
         resposta = model.generate_content([PROMPT, img])
         texto = resposta.text.strip()
-        
-        # Limpeza de possíveis marcações de Markdown na resposta da IA
+
         if texto.startswith("```json"):
             texto = texto.replace("```json", "").replace("```", "").strip()
         elif texto.startswith("```"):
             texto = texto.replace("```", "").strip()
-            
+
         resultado = json.loads(texto)
         return resultado
+
     except Exception as e:
         return {
             "nome_provavel": None,
             "confianca": "baixa",
             "alternativas": [],
-            "aviso": f"Erro técnico: {str(e)}",
-            "descricao_curta": "Não foi possível processar a imagem."
+            "descricao_curta": "Não foi possível processar a imagem.",
+            "caracteristicas_observadas": None,
+            "importancia_agronomica": None,
+            "aviso": f"Erro técnico: {str(e)}"
         }
