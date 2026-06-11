@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import google.generativeai as genai
 import os, json
 import PIL.Image
@@ -7,30 +8,31 @@ import io
 
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = JSONResponse({})
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        return response
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-PROMPT = """
-Você é um especialista em micologia. Analise a imagem enviada e responda APENAS em JSON válido, sem texto fora do JSON, no seguinte formato:
-
+PROMPT = """Você é um especialista em micologia. Analise a imagem e responda APENAS em JSON válido:
 {
-  "nome_provavel": "nome científico e popular do fungo",
+  "nome_provavel": "nome científico e popular",
   "confianca": "alta | média | baixa",
-  "alternativas": ["outro fungo possível 1", "outro fungo possível 2"],
-  "aviso": "mensagem se a imagem for inconclusiva, ou null se for clara",
-  "descricao_curta": "1 frase descrevendo o fungo identificado"
-}
-
-Se a imagem não mostrar um fungo ou for muito ruim, retorne confianca "baixa" e explique no aviso.
-"""
+  "alternativas": ["alternativa 1", "alternativa 2"],
+  "aviso": null,
+  "descricao_curta": "1 frase"
+}"""
 
 @app.post("/identificar")
 async def identificar_fungo(imagem: UploadFile = File(...)):
@@ -42,8 +44,7 @@ async def identificar_fungo(imagem: UploadFile = File(...)):
         texto = texto.split("```")[1]
         if texto.startswith("json"):
             texto = texto[4:]
-    resultado = json.loads(texto)
-    return resultado
+    return json.loads(texto)
 
 @app.get("/")
 def raiz():
