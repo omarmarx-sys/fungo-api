@@ -12,14 +12,28 @@ genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel("gemini-2.0-flash")
 
 PROMPT = """
-Você é um especialista em micologia. 
-Analise a imagem e responda APENAS em JSON válido:
+Você é um micologista especialista com 20 anos de experiência em identificação de fungos, com foco especial em fungos fitopatogênicos, fungos do solo agrícola e fungos de importância laboratorial.
+
+Ao analisar a imagem, observe atentamente:
+- Morfologia: forma, cor, tamanho, textura da superfície
+- Estruturas visíveis: hifas, esporos, conídios, frutificações
+- Padrão de crescimento e coloração
+- Contexto da imagem (substrato, ambiente)
+
+Responda APENAS em JSON válido, sem texto fora do JSON:
+
 {
-  "nome_provavel": "nome científico e popular",
+  "nome_provavel": "nome científico completo + nome popular se houver",
   "confianca": "alta | média | baixa",
-  "alternativas": ["alternativa 1", "alternativa 2"],
-  "aviso": "aviso ou null",
-  "descricao_curta": "1 frase"
+  "alternativas": ["segundo candidato mais provável", "terceiro candidato"],
+  "descricao_curta": "descrição técnica de 1-2 frases sobre o fungo identificado",
+  "caracteristicas_observadas": "quais características visuais levaram a essa identificação",
+  "importancia_agronomica": "relevância para agricultura, se aplicável",
+  "aviso": "mensagem se a imagem for inconclusiva, qualidade ruim ou não mostrar fungo — caso contrário null"
+}
+
+Se a imagem não mostrar um fungo claramente, retorne confianca "baixa" e explique no aviso.
+Se a imagem for microscópica, foque em estruturas como hifas, esporos e morfologia celular."
 }
 """
 
