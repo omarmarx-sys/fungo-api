@@ -1,4 +1,3 @@
-````python
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
@@ -7,10 +6,6 @@ import io
 import json
 import os
 
-# =========================
-# CONFIGURAÇÃO GEMINI
-# =========================
-
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
 model = genai.GenerativeModel("gemini-1.5-flash")
@@ -18,78 +13,58 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 PROMPT = """
 Você é um especialista em micologia.
 
-Analise a imagem e responda APENAS JSON válido:
+Analise a imagem e responda APENAS em JSON válido:
 
 {
-  "nome_provavel": "nome científico e popular",
-  "confianca": "alta",
-  "alternativas": ["opção 1", "opção 2"],
-  "aviso": "texto ou null",
-  "descricao_curta": "descrição curta"
+"nome_provavel": "nome científico e popular",
+"confianca": "alta | média | baixa",
+"alternativas": ["alternativa 1", "alternativa 2"],
+"aviso": "aviso ou null",
+"descricao_curta": "1 frase"
 }
 """
 
-# =========================
-# FASTAPI
-# =========================
-
 app = FastAPI()
 
-# =========================
-# CORS
-# =========================
-
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://fungo-site.vercel.app"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+CORSMiddleware,
+allow_origins=[
+"https://fungo-site.vercel.app"
+],
+allow_credentials=True,
+allow_methods=["*"],
+allow_headers=["*"],
 )
-
-# =========================
-# ROTA RAIZ
-# =========================
 
 @app.get("/")
 def raiz():
-    return {"status": "API de fungos funcionando"}
-
-# =========================
-# IDENTIFICAÇÃO
-# =========================
+return {"status": "API de fungos funcionando"}
 
 @app.post("/identificar")
 async def identificar(imagem: UploadFile = File(...)):
+try:
+conteudo = await imagem.read()
 
-    try:
+````
+    img = Image.open(io.BytesIO(conteudo))
 
-        conteudo = await imagem.read()
+    resposta = model.generate_content([PROMPT, img])
 
-        img = Image.open(io.BytesIO(conteudo))
+    texto = resposta.text.strip()
 
-        resposta = model.generate_content(
-            [PROMPT, img]
-        )
+    if texto.startswith("```json"):
+        texto = texto.replace("```json", "").replace("```", "").strip()
 
-        texto = resposta.text.strip()
+    resultado = json.loads(texto)
 
-        if texto.startswith("```json"):
-            texto = texto.replace("```json", "").replace("```", "").strip()
+    return resultado
 
-        resultado = json.loads(texto)
-
-        return resultado
-
-    except Exception as e:
-
-        return {
-            "nome_provavel": None,
-            "confianca": "baixa",
-            "alternativas": [],
-            "aviso": str(e),
-            "descricao_curta": "Erro ao processar imagem"
-        }
+except Exception as e:
+    return {
+        "nome_provavel": None,
+        "confianca": "baixa",
+        "alternativas": [],
+        "aviso": str(e),
+        "descricao_curta": "Erro ao processar imagem"
+    }
 ````
